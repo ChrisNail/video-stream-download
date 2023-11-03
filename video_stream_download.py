@@ -4,7 +4,8 @@ import os
 import subprocess
 import threading
 import time
-import urllib as urlLib
+import urllib.request as urlRequest
+import urllib.error as urlError
 
 def streamTsFile(url, filePath='./', fileName='stream.ts', start=1, digits=1, retry=False, log=True):
     """Download a stream of TS videos from a URL, appending them to a file until the end of the video is reached"""
@@ -33,14 +34,14 @@ def streamTsFile(url, filePath='./', fileName='stream.ts', start=1, digits=1, re
         try:
             index_str = "{:0{digits}}".format(index, digits=digits)
             fileUrl = url.replace('[i]', index_str)
-            request = urlLib.request.urlopen(fileUrl, timeout=10)
+            request = urlRequest.urlopen(fileUrl, timeout=10)
             fileContents = request.read()
             nonlocal byteSize
             byteSize += len(fileContents)
             buffer.append(fileContents)
             return True
-        except urlLib.error.HTTPError as e:
-            if e.code == 404:
+        except urlError.HTTPError as e:
+            if e.code == 404 or e.code == 503:
                 return False
             raise e
 
@@ -96,6 +97,34 @@ def streamFileList(listFileName, filePath='./', start=1, digits=1, log=True):
     for stream in file_list:
         streamTsFile(stream['url'], filePath, stream['filename'], start, digits, log)
     __log('')
+
+def joinTsFile(fileTemplatePath, filePath='./', fileName='stream.ts', start=1, digits=1):
+    """Join TS files together into a single TS file"""
+    num = start
+    buffer = []
+    crawling = True
+
+    destination = filePath + fileName
+    if fileName.find('.ts') == -1:
+        destination += '.ts'
+
+    outputFile = open(destination, mode='ab')
+
+    while crawling:
+        index_str = "{:0{digits}}".format(num, digits=digits)
+        inputFilePath = fileTemplatePath.replace('[i]', index_str)
+        try:
+            print(inputFilePath, end='\n')
+            inputFile = open(inputFilePath, mode='rb')
+            fileContents = inputFile.read()
+            inputFile.close()
+            outputFile.write(fileContents)
+            num += 1
+        except Exception as e:
+            crawling = False
+
+    print(destination, end='\n')
+    outputFile.close()
 
 def convertMp4(fileName):
     """Use ffmpeg to convert a TS file to an MP4"""
