@@ -1,3 +1,4 @@
+import argparse
 import glob
 import json
 import os
@@ -141,3 +142,37 @@ def batchConvertMp4(file_exp='./*.ts'):
     while threading.active_count() > 1:
         print('Files remaining: {}'.format(threading.active_count() - 1), end='\r')
         time.sleep(1)
+
+def parseArgs():
+    argParser = argparse.ArgumentParser()
+    subParsers = argParser.add_subparsers(dest='action')
+
+    fileParser = argparse.ArgumentParser(add_help=False)
+    fileParser.add_argument('-p', '--path', default='./', nargs='?', help='File path to store in.')
+    fileParser.add_argument('-f', '--filename', default='stream.ts', nargs='?', help='File name to store with.')
+
+    streamParser = subParsers.add_parser('stream', parents=[fileParser])
+    streamParser.add_argument('url', nargs=1, help='URL to download from.')
+    streamParser.add_argument('-s', '--start', choices=[0, 1], type=int, default=1, nargs='?', help='Starting index of the TS filename.')
+    streamParser.add_argument('-d', '--digits', choices=range(1, 10), type=int, default=1, nargs='?', help='Number of digits the TS file uses.')
+
+    joinParser = subParsers.add_parser('join', parents=[fileParser])
+    joinParser.add_argument('template', nargs=1, help='File path template to join.')
+    joinParser.add_argument('-s', '--start', choices=[0, 1], type=int, default=1, nargs='?', help='Starting index of the TS filename.')
+    joinParser.add_argument('-d', '--digits', choices=range(1, 10), type=int, default=1, nargs='?', help='Number of digits the TS file uses.')
+
+    convertParser = subParsers.add_parser('convert', parents=[fileParser])
+    
+    args = argParser.parse_args()
+    if args.action == 'stream':
+        print('Streaming TS file')
+        streamTsFile(args.url, filePath=args.path, fileName=args.filename, start=args.start, digits=args.digits)
+    elif args.action == 'join':
+        print('Joining TS files')
+        joinTsFile(args.template, filePath=args.path, fileName=args.filename, start=args.start, digits=args.digits)
+    elif args.action == 'convert':
+        print('Converting TS file')
+        convertMp4(args.filePath + args.fileName)
+
+if __name__ == '__main__':
+    parseArgs()
